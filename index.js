@@ -9,12 +9,10 @@ const app=express()
 
 app.use(express.json())
 app.use(cors())
-app.use('/passwords',passwordRouter())
-
+app.use('/passwords',passwordRouter)
 
 
 const start=async()=>{
-    await dbConnect()
     app.listen(Port,()=>{
         console.log(`Running At ${Port}`);
     })
