@@ -19,14 +19,27 @@ router.get('/',async(req,res)=>{
 router.post('/signUp',async(req,res)=>{
     const {username,password,email}=req.body
     const hashedPassword=await hashPassword(password)
-    await db.query('INSERT INTO users (username,password,email) VALUES (?,?,?)',
-    [username,hashedPassword,email],
+    db.query('Select * from users where (?)',
+    [username],
     (err,result)=>{
+        if(err){
+            return res.status(500).json({msg:"Internal Error",error:err})
+        }
+        console.log(result);
+        if(result.length==0){
+        db.query('INSERT INTO users (username,password,email) VALUES (?,?,?)',
+        [username,hashedPassword,email],
+        (err,result)=>{
         if(err){
             console.log(err);
             return res.status(400).json({msg:"Error",error:err})
         }
         return res.status(200).json({msg:"User Signed Up"})
+    })
+        }
+        if(result[0].username===username){
+            return res.status(400).json({msg:"Username already used"})
+        }
     })
 })
 
