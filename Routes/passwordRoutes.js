@@ -1,7 +1,7 @@
 const express=require('express')
 const {encrypt,decrypt}=require('../EncryptionHandler')
 const router=express.Router()
-const db=require('./dbConfig')
+const db=require('../dbConfig')
 // console.log(db);
 
 router.post("/addPassword",(req,res)=>{
