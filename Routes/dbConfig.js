@@ -10,7 +10,7 @@ const db=mySql.createConnection({
         if(err){
             return console.log(err);
         }
-        console.log("Connect to MySQL server");
+        console.log("Connected to MySQL server");
     })
     db.query=util.promisify(db.query)
     // console.log(db);
