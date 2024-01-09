@@ -1,10 +1,9 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../dbConfig");
-const util = require("util");
-const { hashPassword, compare } = require("../auth");
+const db = require("../helpers/dbConfig");
+const { hashPassword, compare } = require("../helpers/auth");
 
-router.get("/", async (req,res) => {
+router.get("/", async (req, res) => {
   try {
     const [result] = await db.query("SELECT * from users");
     console.log(result);
@@ -44,20 +43,20 @@ router.post("/signUp", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   try {
-    const [result]=await db.query(
-      `SELECT * from users WHERE username=(?)`,
-      [username])
-      if (result.length === 0) {
-        return res.status(400).json({ msg: "User not found" });
-      }
-      const check = await compare(password, result[0].password);
-      if (check) {
-        return res.status(200).json({ msg: "Login Successful" });
-      }
-      return res.status(404).json({ msg: "Invalid Credentials" });
+    const [result] = await db.query(`SELECT * from users WHERE username=(?)`, [
+      username,
+    ]);
+    if (result.length === 0) {
+      return res.status(400).json({ msg: "User not found" });
+    }
+    const check = await compare(password, result[0].password);
+    if (check) {
+      return res.status(200).json({ msg: "Login Successful" });
+    }
+    return res.status(404).json({ msg: "Invalid Credentials" });
   } catch (err) {
     return res.status(500).json({ msg: "Internal Error", error: err });
   }
-  });
+});
 
 module.exports = router;
