@@ -1,8 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../helpers/dbConfig");
+const jwt = require("jsonwebtoken");
 const { hashPassword, compare } = require("../helpers/auth");
-const { createToken, verifyToken } = require("../utils/tokenManager");
+const {
+  verifyJwt,
+  verifyToken,
+  createAccessToken,
+  createRefreshToken,
+} = require("../utils/tokenManager");
 
 router.get("/", async (req, res) => {
   try {
@@ -16,7 +22,6 @@ router.get("/", async (req, res) => {
 
 router.post("/signUp", async (req, res) => {
   const { username, password, email } = req.body;
-  const hashedPassword = await hashPassword(password);
   try {
     const [result] = await db.query("Select * from users where `username`= ?", [
       username,
@@ -26,6 +31,7 @@ router.post("/signUp", async (req, res) => {
     }
     if (result.length === 0) {
       try {
+        const hashedPassword = await hashPassword(password);
         const insertResult = await db.query(
           "INSERT INTO users (username,password,email) VALUES (?,?,?)",
           [username, hashedPassword, email]
@@ -49,6 +55,9 @@ router.post("/signUp", async (req, res) => {
 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ msg: "All fields are required" });
+  }
   try {
     const [result] = await db.query(`SELECT * from users WHERE username=(?)`, [
       username,
@@ -58,34 +67,54 @@ router.post("/login", async (req, res) => {
     }
     const check = await compare(password, result[0].password);
     if (check) {
-      res.clearCookie("auth-token", {
-        path: "/",
-        domain: "localhost",
+      const accessToken = await createAccessToken(
+        result[0].id,
+        result[0].username,
+        result[0].email
+      );
+      const refreshToken = await createRefreshToken(result[0].username);
+      res.cookie("jwt", refreshToken, {
         httpOnly: true,
-        signed: true,
+        secure: true,
+        sameSite: "none",
+        maxAge: 7 * 42 * 60 * 60 * 100,
       });
-      const token = await createToken(result[0].id, result[0].email);
-      // console.log(token);
-      const expires = new Date();
-      expires.setDate(expires.getDate() + 7);
-      res.cookie("auth-token", token, {
-        path: "/",
-        domain: "localhost",
-        expires,
-        httpOnly: true,
-        signed: true,
-      });
-      return res.status(200).json({
-        msg: "Login Successful",
-        name: result[0].username,
-        email: result[0].email,
-      });
+      return res.json({ accessToken });
     }
     return res.status(404).json({ msg: "Invalid Credentials" });
   } catch (err) {
     console.log(err);
     return res.status(500).json({ msg: "Internal Error", error: err });
   }
+});
+
+router.get("/refreshToken", async (req, res) => {
+  const cookies = req.cookies;
+  if (!cookies) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const refreshToken = cookies.jwt;
+  jwt.verify(
+    refreshToken,
+    process.env.Refresh_Token_Secret,
+    async (err, decoded) => {
+      if (err) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const [user] = await db.query("Select * from users where username=(?)", [
+        decoded.username,
+      ]);
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const accessToken = await createAccessToken(
+        user[0].id,
+        user[0].username,
+        user[0].email
+      );
+      return res.json({ accessToken });
+    }
+  );
 });
 
 router.get("/verifyUser", verifyToken, async (req, res) => {
@@ -102,23 +131,12 @@ router.get("/verifyUser", verifyToken, async (req, res) => {
   }
 });
 
-router.get("/userLogout", verifyToken, async (req, res, next) => {
-  try {
-    const [user] = await db.query("Select * from users where id=(?)", [
-      res.locals.jwtData.id,
-    ]);
-    if (!user) {
-      return res.status(401).json({ msg: "Token Malfunction" });
-    }
-    if (user.id.toString() !== res.locals.jwtData.id) {
-      return res.status(401).json({ msg: "Permission didn't match" });
-    }
-    res.clearCookie(Cookie_Name);
-    return res
-      .status(201)
-      .json({ message: "Success", name: User.name, email: User.email });
-  } catch (error) {
-    return res.status(500).json({ message: "Error", cause: error });
+router.post("/logout", verifyJwt, async (req, res, next) => {
+  const cookies = req.cookies;
+  if (!cookies.jwt) {
+    return res.sendStatus(204);
   }
+  res.clearCookie("jwt", { httpOnly: true, secure: true, sameSite: "none" });
+  return res.json({ message: "Cookie Cleared" });
 });
 module.exports = router;
