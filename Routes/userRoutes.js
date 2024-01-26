@@ -102,4 +102,23 @@ router.get("/verifyUser", verifyToken, async (req, res) => {
   }
 });
 
+router.get("/userLogout", verifyToken, async (req, res, next) => {
+  try {
+    const [user] = await db.query("Select * from users where id=(?)", [
+      res.locals.jwtData.id,
+    ]);
+    if (!user) {
+      return res.status(401).json({ msg: "Token Malfunction" });
+    }
+    if (user.id.toString() !== res.locals.jwtData.id) {
+      return res.status(401).json({ msg: "Permission didn't match" });
+    }
+    res.clearCookie(Cookie_Name);
+    return res
+      .status(201)
+      .json({ message: "Success", name: User.name, email: User.email });
+  } catch (error) {
+    return res.status(500).json({ message: "Error", cause: error });
+  }
+});
 module.exports = router;
