@@ -12,7 +12,7 @@ const createToken = async (id, email) => {
 const createAccessToken = async (userId, username, email) => {
   const payload = { userId, username, email };
   const token = await jwt.sign(payload, process.env.Access_Token_Secret, {
-    expiresIn: "60s",
+    expiresIn: "1hr",
   });
   return token;
 };
@@ -25,7 +25,8 @@ const createRefreshToken = async (username) => {
 };
 
 const verifyToken = async (req, res, next) => {
-  const token = req.signedCookies["auth-token"];
+  const token = req.signedCookies["access-token"];
+  console.log(token);
   if (!token || token.trim() === "") {
     return res.status(401).json({ message: "Token Not Received" });
   } else {
@@ -47,9 +48,10 @@ const verifyToken = async (req, res, next) => {
   }
 };
 
-const verifyJwt = (req, res, next) => {
+const verifyJwt = async (req, res, next) => {
+  // console.log("headers:", req.headers);
   const authHeader = req.headers.authorization || req.headers.Authorization;
-  // console.log(authHeader);
+  // console.log("authHeader:", authHeader);
 
   if (!authHeader?.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -60,6 +62,8 @@ const verifyJwt = (req, res, next) => {
       console.log(err);
       return res.status(403).json({ message: "Forbidden" });
     }
+    // console.log(decoded);
+    res.locals.jwtData = decoded;
     req.user = decoded.username;
     next();
   });

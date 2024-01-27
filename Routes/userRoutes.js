@@ -37,7 +37,7 @@ router.post("/signUp", async (req, res) => {
           [username, hashedPassword, email]
         );
         console.log("Inserted:", insertResult);
-        res.clearCookie("auth-token", {
+        res.clearCookie("access-token", {
           path: "/",
           domain: "localhost",
           httpOnly: true,
@@ -79,7 +79,15 @@ router.post("/login", async (req, res) => {
         sameSite: "none",
         maxAge: 7 * 42 * 60 * 60 * 100,
       });
-      return res.json({ accessToken });
+      return res.json({
+        msg: "Login successful",
+        user: {
+          userId: result[0].id,
+          username: result[0].username,
+          userEmail: result[0].email,
+        },
+        accessToken,
+      });
     }
     return res.status(404).json({ msg: "Invalid Credentials" });
   } catch (err) {
@@ -112,7 +120,9 @@ router.get("/refreshToken", async (req, res) => {
         user[0].username,
         user[0].email
       );
-      return res.json({ accessToken });
+      return res
+        .status(200)
+        .json({ msg: "Token Refreshed", user: user[0], accessToken });
     }
   );
 });
@@ -133,10 +143,11 @@ router.get("/verifyUser", verifyToken, async (req, res) => {
 
 router.post("/logout", verifyJwt, async (req, res, next) => {
   const cookies = req.cookies;
+  // console.log("cookies:", cookies);
   if (!cookies.jwt) {
     return res.sendStatus(204);
   }
   res.clearCookie("jwt", { httpOnly: true, secure: true, sameSite: "none" });
-  return res.json({ message: "Cookie Cleared" });
+  return res.status(200).json({ message: "Cookie Cleared" });
 });
 module.exports = router;

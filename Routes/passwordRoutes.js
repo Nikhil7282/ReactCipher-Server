@@ -1,7 +1,7 @@
 const express = require("express");
 const { encrypt, decrypt } = require("../helpers/EncryptionHandler");
 const router = express.Router();
-const { verifyToken } = require("../utils/tokenManager");
+const { verifyToken, verifyJwt } = require("../utils/tokenManager");
 const db = require("../helpers/dbConfig");
 // console.log(db);
 
@@ -33,7 +33,7 @@ router.post("/decryptPassword", (req, res) => {
   }
 });
 
-router.get("/userPasswords", verifyToken, async (req, res) => {
+router.get("/userPasswords", verifyJwt, async (req, res) => {
   const { email } = res.locals.jwtData;
   // console.log(res.locals.jwtData);
   const [userid] = await db.query("select id from users where email=(?)", [
