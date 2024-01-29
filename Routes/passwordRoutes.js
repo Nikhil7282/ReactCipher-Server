@@ -1,17 +1,18 @@
 const express = require("express");
 const { encrypt, decrypt } = require("../helpers/EncryptionHandler");
 const router = express.Router();
-const { verifyToken, verifyJwt } = require("../utils/tokenManager");
+const { verifyJwt } = require("../utils/tokenManager");
 const db = require("../helpers/dbConfig");
 // console.log(db);
 
-router.post("/addPassword", async (req, res) => {
+router.post("/addPassword", verifyJwt, async (req, res) => {
   const { password, title } = req.body;
   const encryptedPassword = encrypt(password);
+  const { userId } = res.locals.jwtData;
   try {
     const result = await db.query(
-      "INSERT INTO passwords (password,title,iv) VALUES (?,?,?)",
-      [encryptedPassword.password, title, encryptedPassword.iv]
+      "INSERT INTO passwords (password,title,iv,userid) VALUES (?,?,?,?)",
+      [encryptedPassword.password, title, encryptedPassword.iv, userId]
     );
     // console.log(result);
     res.status(200).json({ msg: "Success" });
@@ -21,8 +22,6 @@ router.post("/addPassword", async (req, res) => {
 });
 
 router.post("/decryptPassword", (req, res) => {
-  // const {password,iv}=req.body
-  // console.log(password,iv);
   try {
     const decryptedPassword = decrypt(req.body);
     console.log(decryptedPassword);
@@ -54,6 +53,29 @@ router.get("/userPasswords", verifyJwt, async (req, res) => {
     return res.status(500).json({ msg: "Internal Error" });
   }
 });
+
+router.delete("/deletePassword", verifyJwt, async (req, res) => {
+  const { passwordId } = req.body;
+  // console.log("ID: " + passwordId);
+  try {
+    const [password] = await db.query("select * from passwords where id=(?)", [
+      passwordId,
+    ]);
+    // console.log("Password", password);
+    if (!password[0]) {
+      return res.status(404).json({ msg: "Password not found" });
+    }
+    const deleteRes = await db.query("delete from passwords where id=(?)", [
+      passwordId,
+    ]);
+    // console.log("Delete:", deleteRes);
+    res.status(200).json({ msg: "Deleted SuccessFully" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ msg: "Internal Error" });
+  }
+});
+
 router.get("/getAllPasswords", async (req, res) => {
   try {
     const [result] = await db.query("SELECT * FROM passwords");
