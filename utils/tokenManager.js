@@ -65,6 +65,7 @@ const verifyJwt = async (req, res, next) => {
     // console.log(decoded);
     res.locals.jwtData = decoded;
     req.user = decoded.username;
+    console.log("Token Verified");
     next();
   });
 };

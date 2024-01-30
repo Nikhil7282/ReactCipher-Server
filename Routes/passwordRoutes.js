@@ -14,14 +14,19 @@ router.post("/addPassword", verifyJwt, async (req, res) => {
       "INSERT INTO passwords (password,title,iv,userid) VALUES (?,?,?,?)",
       [encryptedPassword.password, title, encryptedPassword.iv, userId]
     );
-    // console.log(result);
-    res.status(200).json({ msg: "Success" });
+    // console.log(result[0].insertId);
+    const [data] = await db.query("Select * from passwords where id=(?)", [
+      result[0].insertId,
+    ]);
+    console.log(data);
+    res.status(200).json({ msg: "Success", data: data[0] });
   } catch (err) {
     console.log(err);
   }
 });
 
 router.post("/decryptPassword", (req, res) => {
+  console.log(req.body);
   try {
     const decryptedPassword = decrypt(req.body);
     console.log(decryptedPassword);
@@ -56,7 +61,7 @@ router.get("/userPasswords", verifyJwt, async (req, res) => {
 
 router.delete("/deletePassword", verifyJwt, async (req, res) => {
   const { passwordId } = req.body;
-  // console.log("ID: " + passwordId);
+  console.log("ID: " + passwordId);
   try {
     const [password] = await db.query("select * from passwords where id=(?)", [
       passwordId,
@@ -72,7 +77,7 @@ router.delete("/deletePassword", verifyJwt, async (req, res) => {
     res.status(200).json({ msg: "Deleted SuccessFully" });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ msg: "Internal Error" });
+    return res.status(500).json({ msg: "Internal Error", error });
   }
 });
 
